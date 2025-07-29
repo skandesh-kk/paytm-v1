@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const zod= require('zod');
-const {JWT_SECRET} = require("../config");
-const {User} = require("../db");
+const JWT_SECRET = require("../config");
+const {User, Account } = require("../db");
 const jwt = require('jsonwebtoken');
-const authMiddleware = require("../middleware");
+const {authMiddleware} = require("../middleware");
+const mongoose = require("mongoose");
+console.log("authMiddleware is:", authMiddleware);
 
 const signupSchema = zod.object({
     username: zod.string().email("Invalid email format").min(1, "Email is required"),
@@ -21,11 +23,11 @@ router.post("/signup", async (req,res) =>{
         })
     }
 
-    const user=User.findOne({
+    const user=await User.findOne({
         username: body.username
     })
 
-    if(user._id){
+    if(user){
         return res.json({
             message: "User already exists"
         })
@@ -37,7 +39,7 @@ router.post("/signup", async (req,res) =>{
         balance: 1+Math.random()*10000 // random balance between 1 and 10000
     })
 
-    const token=JWT_SECRET.sign({
+    const token=jwt.sign({
         userId:dbUser._id,
     },JWT_SECRET);
 
@@ -46,6 +48,10 @@ router.post("/signup", async (req,res) =>{
         token: token
     })
 })
+const signinBody = zod.object({
+    username: zod.string().email(),
+    password: zod.string()
+});
 
 router.post("/signin", async (req,res) => {
     const body=req.body;
@@ -102,6 +108,7 @@ router.get("/bulk", async (req, res) => {
 
     const users = await User.find({
         $or: [{
+            // syntax to do like queries in mongoose
             firstName: {
                 "$regex": filter
             }
@@ -137,8 +144,10 @@ router.get("/balance",authMiddleware, async (req, res) => {
 //but not good soln , for good - need to use transactions
 //if one of the updates fail, then we need to rollback the other update
 router.post("/transfer",authMiddleware, async (req, res) => {
-    const { to, amount } = req.body;
-    if (!to || !amount) {
+    try{
+    const { to } = req.body;
+    const amount = Number(req.body.amount);
+    if (!to || isNaN(amount) || amount <= 0) {
         return res.status(400).json({
             message: "Invalid inputs"
         });
@@ -151,26 +160,38 @@ router.post("/transfer",authMiddleware, async (req, res) => {
             message: "Insufficient balance"
         });
     }
+    console.log("Transfer to userId:", to);
+    console.log("ObjectId format:", new mongoose.Types.ObjectId(to));
+
     const toAccount = await Account.findOne({
-        userId: to
+    userId: new mongoose.Types.ObjectId(to)
     });
     if (!toAccount) {
         return res.status(400).json({
             message: "Invalid recipient"
         });
     }
-    await Account.updateOne({
-        userId: req.userId
-    }, {
-        $inc: { balance: -amount }
-    });
-    await Account.updateOne({
-        userId: to
-    }, {
-        $inc: { balance: amount }
-    });
+    
+        // Subtract from sender
+await Account.updateOne(
+  { userId: req.userId },
+  { $inc: { balance: -amount } }
+);
+
+// Add to recipient
+await Account.updateOne(
+  { userId: new mongoose.Types.ObjectId(to) },
+  { $inc: { balance: amount } }
+);
+
     res.json({
         message: "Transfer successful"
     });
+    } catch(error){
+        console.error("Error during transfer:", error);
+        res.status(500).json({
+            message: "Internal server error"
+        });
+    }
 })
 module.exports = router;
