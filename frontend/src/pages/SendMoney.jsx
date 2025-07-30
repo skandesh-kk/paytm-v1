@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from "axios";
 import { useState } from 'react';
 
@@ -7,15 +7,27 @@ export const SendMoney = () => {
     const id = searchParams.get("id");//getting from the url
     const name = searchParams.get("name");
     const [amount, setAmount] = useState(0);
-    
+    const navigate = useNavigate();
+
     if (!id || !name) {
         return <div className="text-center mt-20 text-red-600 font-bold">
             Invalid user data in URL. Please return to dashboard.
         </div>;
     }
     
-    return <div className="flex justify-center h-screen bg-gray-100">
-        <div className="h-full flex flex-col justify-center">
+    return (
+        <div className="flex justify-center h-screen bg-gray-100">
+
+            {/* Dashboard button */}
+            <div className="absolute top-4 right-4">
+                <button
+                    onClick={() => navigate("/dashboard")}
+                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+                >
+                    Go to Dashboard
+                </button>
+            </div>
+            <div className="h-full flex flex-col justify-center">
             <div
                 class="border h-min text-card-foreground max-w-md p-4 space-y-8 w-96 bg-white shadow-lg rounded-lg"
             >
@@ -56,7 +68,7 @@ export const SendMoney = () => {
                                 Authorization: "Bearer " + localStorage.getItem("token")
                             }
                         })
-                    }} class="justify-center rounded-md text-sm font-medium ring-offset-background transition-colors h-10 px-4 py-2 w-full bg-green-500 text-white">
+                    }} class="justify-center rounded-md text-sm font-medium ring-offset-background transition-colors h-10 px-4 py-2 w-full bg-green-500 text-white hover:bg-green-700 transition">
                         Initiate Transfer
                     </button>
                 </div>
@@ -64,4 +76,5 @@ export const SendMoney = () => {
         </div>
       </div>
     </div>
+    )
 }
