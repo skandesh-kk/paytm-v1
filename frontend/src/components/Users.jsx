@@ -4,11 +4,11 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 
+
 export const Users = () => {
     // Replace with backend call
     const [users, setUsers] = useState([]);
-    const [filter, setFilter] = useState("");
-
+    const [filter, setFilter] = useState("");  
     //populating the user from backend endpoint and store in state variable
     useEffect(() => {
         axios.get("http://localhost:3000/api/v1/user/bulk?filter=" + filter)
